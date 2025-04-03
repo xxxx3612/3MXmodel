@@ -11,7 +11,373 @@
   <meta name="msapplication-tap-highlight" content="no"/>
 
   <script type="text/javascript" src="script/acute3d.js"></script>
+  
+  <style>
+    /* 按钮样式 */
+    .custom-buttons {
+      position: absolute;
+      top: 40px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .custom-button {
+      width: 50px;
+      height: 50px;
+      margin-top: 10px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.8);
+      border: 2px solid #333;
+      cursor: pointer;
+      background-size: cover;
+      background-position: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+    }
+    
+    .custom-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    }
+    
+    /* 图片容器样式 */
+    .image-container {
+      position: absolute;
+      width: 95%;
+      height: 95%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      overflow: hidden;
+    }
+    
+    /* 可拖动图片样式 */
+    .draggable-image {
+      position: absolute;
+      max-width: 100%;
+      max-height: 100%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      cursor: move;
+    }
+    
+    /* 全屏图片容器 */
+    .fullscreen-image {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 2000;
+      overflow: hidden;
+    }
+    
+    /* 关闭按钮 */
+    .close-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      text-align: center;
+      line-height: 40px;
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      z-index: 2001;
+    }
+    
+    .close-button:hover {
+      background-color: white;
+      transform: scale(1.1);
+    }
+    
+    /* 缩放控制按钮 */
+    .zoom-controls {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      z-index: 2001;
+    }
+    
+    .zoom-button {
+      width: 40px;
+      height: 40px;
+      margin: 5px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.8);
+      border: 2px solid #333;
+      color: #333;
+      font-size: 24px;
+      text-align: center;
+      line-height: 38px;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      user-select: none;
+    }
+    
+    .zoom-button:hover {
+      background-color: white;
+    }
+  </style>
 </head>
 <body>
+  <!-- 按钮区域 -->
+  <div class="custom-buttons">
+    <div class="custom-button" id="mapButton" style="background-image: url('resource/acute3d/img/icon-map.png');"></div>
+    <div class="custom-button" id="busButton" style="background-image: url('resource/acute3d/img/icon-bus.png');"></div>
+  </div>
+  
+  <!-- 全屏图片容器 - 地图 -->
+  <div class="fullscreen-image" id="mapImage">
+    <div class="close-button">&times;</div>
+    <div class="image-container">
+      <img src="resource/acute3d/img/map.png" class="draggable-image" id="mapImg">
+    </div>
+    <div class="zoom-controls">
+      <div class="zoom-button zoom-in">+</div>
+      <div class="zoom-button zoom-out">−</div>
+    </div>
+  </div>
+  
+  <!-- 全屏图片容器 - 公交时刻表 -->
+  <div class="fullscreen-image" id="busImage">
+    <div class="close-button">&times;</div>
+    <div class="image-container">
+      <img src="resource/acute3d/img/bus-schedule.png" class="draggable-image" id="busImg">
+    </div>
+    <div class="zoom-controls">
+      <div class="zoom-button zoom-in">+</div>
+      <div class="zoom-button zoom-out">−</div>
+    </div>
+  </div>
+  
+  <script>
+    // 等待DOM加载完成
+    document.addEventListener('DOMContentLoaded', function() {
+      // 获取按钮和图片容器元素
+      const mapButton = document.getElementById('mapButton');
+      const busButton = document.getElementById('busButton');
+      const mapImage = document.getElementById('mapImage');
+      const busImage = document.getElementById('busImage');
+      const closeButtons = document.querySelectorAll('.close-button');
+      const zoomInButtons = document.querySelectorAll('.zoom-in');
+      const zoomOutButtons = document.querySelectorAll('.zoom-out');
+      const draggableImages = document.querySelectorAll('.draggable-image');
+
+      // 添加按钮点击事件
+      mapButton.addEventListener('click', function() {
+        mapImage.style.display = 'block';
+        resetImageZoom(document.getElementById('mapImg'));
+      });
+      
+      busButton.addEventListener('click', function() {
+        busImage.style.display = 'block';
+        resetImageZoom(document.getElementById('busImg'));
+      });
+      
+      // 添加关闭按钮事件
+      closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          mapImage.style.display = 'none';
+          busImage.style.display = 'none';
+        });
+      });
+      
+      // 为每个图片添加拖动和缩放功能
+      draggableImages.forEach(img => {
+        setupDraggableImage(img);
+      });
+      
+      // 缩放按钮事件
+      zoomInButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const container = button.closest('.fullscreen-image');
+          const image = container.querySelector('.draggable-image');
+          zoomImage(image, 1.2); // 放大1.2倍
+        });
+      });
+      
+      zoomOutButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const container = button.closest('.fullscreen-image');
+          const image = container.querySelector('.draggable-image');
+          zoomImage(image, 0.8); // 缩小到0.8倍
+        });
+      });
+      
+      // 设置图片拖动功能
+      function setupDraggableImage(img) {
+        let isDragging = false;
+        let startX, startY;
+        let translateX = 0, translateY = 0;
+        let scale = 1;
+        
+        // 保存原始尺寸，用于计算边界
+        let imgWidth, imgHeight;
+        img.onload = function() {
+          imgWidth = img.naturalWidth;
+          imgHeight = img.naturalHeight;
+        };
+        
+        // 鼠标事件（桌面端）
+        img.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', dragMove);
+        window.addEventListener('mouseup', endDrag);
+        
+        // 触摸事件（移动端）
+        img.addEventListener('touchstart', handleTouchStart);
+        img.addEventListener('touchmove', handleTouchMove);
+        img.addEventListener('touchend', handleTouchEnd);
+        
+        // 开始拖动
+        function startDrag(e) {
+          e.preventDefault();
+          isDragging = true;
+          startX = e.clientX - translateX;
+          startY = e.clientY - translateY;
+          img.style.transition = 'none'; // 拖动时禁用过渡效果
+        }
+        
+        // 拖动
+        function dragMove(e) {
+          if (!isDragging) return;
+          e.preventDefault();
+          const newTranslateX = e.clientX - startX;
+          const newTranslateY = e.clientY - startY;
+          
+          // 应用约束确保图片不会完全离开可视区域
+          const { constrainedX, constrainedY } = constrainDrag(newTranslateX, newTranslateY, scale);
+          translateX = constrainedX;
+          translateY = constrainedY;
+          
+          applyTransform();
+        }
+        
+        // 结束拖动
+        function endDrag() {
+          isDragging = false;
+          img.style.transition = 'transform 0.3s ease'; // 恢复过渡效果
+        }
+        
+        // 处理触摸开始
+        function handleTouchStart(e) {
+          if (e.touches.length === 1) {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.touches[0].clientX - translateX;
+            startY = e.touches[0].clientY - translateY;
+            img.style.transition = 'none';
+          }
+        }
+        
+        // 处理触摸移动
+        function handleTouchMove(e) {
+          if (!isDragging || e.touches.length !== 1) return;
+          e.preventDefault();
+          const newTranslateX = e.touches[0].clientX - startX;
+          const newTranslateY = e.touches[0].clientY - startY;
+          
+          // 应用约束
+          const { constrainedX, constrainedY } = constrainDrag(newTranslateX, newTranslateY, scale);
+          translateX = constrainedX;
+          translateY = constrainedY;
+          
+          applyTransform();
+        }
+        
+        // 处理触摸结束
+        function handleTouchEnd() {
+          isDragging = false;
+          img.style.transition = 'transform 0.3s ease';
+        }
+        
+        // 约束拖动范围，确保图片不会完全离开视口
+        function constrainDrag(x, y, currentScale) {
+          // 获取容器和图片尺寸
+          const container = img.closest('.image-container');
+          const containerRect = container.getBoundingClientRect();
+          
+          // 计算缩放后的图片尺寸
+          const scaledWidth = img.clientWidth * currentScale;
+          const scaledHeight = img.clientHeight * currentScale;
+          
+          // 计算最大允许的拖动范围
+          const maxX = (scaledWidth - containerRect.width) / 2;
+          const maxY = (scaledHeight - containerRect.height) / 2;
+          
+          // 如果图片小于容器，则不允许拖动
+          if (scaledWidth <= containerRect.width) {
+            x = 0;
+          } else {
+            // 限制水平拖动范围
+            x = Math.max(-maxX, Math.min(maxX, x));
+          }
+          
+          if (scaledHeight <= containerRect.height) {
+            y = 0;
+          } else {
+            // 限制垂直拖动范围
+            y = Math.max(-maxY, Math.min(maxY, y));
+          }
+          
+          return { constrainedX: x, constrainedY: y };
+        }
+        
+        // 应用变换
+        function applyTransform() {
+          img.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${scale})`;
+        }
+        
+        // 缩放函数 - 供外部调用
+        img.zoomImage = function(factor) {
+          const oldScale = scale;
+          scale = Math.max(0.5, Math.min(5, scale * factor));
+          
+          // 如果缩放比例改变，可能需要重新约束位置
+          if (oldScale !== scale) {
+            const { constrainedX, constrainedY } = constrainDrag(translateX, translateY, scale);
+            translateX = constrainedX;
+            translateY = constrainedY;
+          }
+          
+          applyTransform();
+        };
+        
+        // 重置图片位置和缩放 - 供外部调用
+        img.resetZoom = function() {
+          scale = 1;
+          translateX = 0;
+          translateY = 0;
+          applyTransform();
+        };
+      }
+      
+      // 缩放图片的工具函数
+      function zoomImage(img, factor) {
+        if (typeof img.zoomImage === 'function') {
+          img.zoomImage(factor);
+        }
+      }
+      
+      // 重置图片缩放
+      function resetImageZoom(img) {
+        if (typeof img.resetZoom === 'function') {
+          img.resetZoom();
+        }
+      }
+    });
+  </script>
 </body>
 </html>
